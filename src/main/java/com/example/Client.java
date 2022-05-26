@@ -3,8 +3,12 @@ package com.example;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Scanner;
 
 import javax.swing.*;
 
@@ -16,7 +20,7 @@ public class Client {
     public static void writeNewUserToFile(String username, String password) {
         FileWriter fWriter;
         try {
-            fWriter = new FileWriter("users.dat");
+            fWriter = new FileWriter("users.dat", true);
             fWriter.write(username + "\n");
             fWriter.write(password + "\n");
             fWriter.close();
@@ -28,6 +32,22 @@ public class Client {
 
     private static boolean passwordsMatched(String password, String repeatPassword) {
         return password.equals(repeatPassword);
+    }
+
+    private static boolean usernameExists(String newUsername) {
+        Scanner scanner;
+        try {
+            scanner = new Scanner(new File("users.dat"));
+            while (scanner.hasNextLine()) {
+                String username = scanner.nextLine();
+                if (username.equals(newUsername)) {
+                    return true;
+                }
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     public static void createUser() {
@@ -56,10 +76,16 @@ public class Client {
 
             @Override
             public void actionPerformed(ActionEvent e) {
+                String username = usernameTxtField.getText();
                 String password = String.valueOf(passwordField.getPassword());
                 String repeatPassword = String.valueOf(repeatPasswordField.getPassword());
-                if (usernameTxtField.getText().isEmpty() || password.isEmpty() || repeatPassword.isEmpty()) {
+                if (username.isEmpty() || password.isEmpty() || repeatPassword.isEmpty()) {
                     JOptionPane.showMessageDialog(createUserFrame, "Chưa điển đầy đủ các trường thông tin!", "Lỗi",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                if (usernameExists(username)) {
+                    JOptionPane.showMessageDialog(createUserFrame, "Tên tài khoản đã tồn tại!", "Lỗi",
                             JOptionPane.ERROR_MESSAGE);
                     return;
                 }
