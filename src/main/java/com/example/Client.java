@@ -53,7 +53,7 @@ public class Client {
         return false;
     }
 
-    public static void createUser() {
+    public static void showCreateUser() {
         final JFrame createUserFrame = new JFrame();
         JLabel usernameLabel = new JLabel("Username");
         usernameLabel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
@@ -123,7 +123,79 @@ public class Client {
         createUserFrame.setVisible(true);
     }
 
+    public static boolean authenticate(String loginUsername, String loginPassword) {
+        Scanner scanner;
+        try {
+            scanner = new Scanner(new File("users.dat"));
+            while (scanner.hasNextLine()) {
+                String username = scanner.nextLine();
+                if (username.equals(loginUsername)) {
+                    String password = scanner.nextLine();
+                    if (password.equals(DigestUtils.sha1Hex(loginPassword)))
+                        return true;
+                }
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public static void showLogin() {
+        final JFrame loginFrame = new JFrame();
+        JLabel usernameLabel = new JLabel("Username");
+        usernameLabel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        loginFrame.add(usernameLabel);
+        final JTextField usernameTxtField = new JTextField();
+        usernameTxtField.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        loginFrame.add(usernameTxtField);
+        JLabel passwordLabel = new JLabel("Password");
+        passwordLabel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        loginFrame.add(passwordLabel);
+        final JPasswordField passwordField = new JPasswordField();
+        passwordField.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        loginFrame.add(passwordField);
+
+        JPanel buttonsPanel = new JPanel();
+        JButton confirmBtn = new JButton("Đăng nhập");
+        confirmBtn.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String username = usernameTxtField.getText(), password = String.valueOf(passwordField.getPassword());
+                if (authenticate(username, password)) {
+                    loginFrame.dispose();
+                } else {
+                    JOptionPane.showMessageDialog(loginFrame, "Tên tài khoản hoặc mật khẩu không đúng!", "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+
+        });
+        buttonsPanel.add(confirmBtn);
+        JButton exitBtn = new JButton("Thoát");
+        exitBtn.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                loginFrame.dispose();
+            }
+
+        });
+        buttonsPanel.add(exitBtn);
+        buttonsPanel.setLayout(new FlowLayout());
+        buttonsPanel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        loginFrame.add(buttonsPanel);
+
+        loginFrame.setTitle("Đăng nhập");
+        loginFrame.setLayout(new BoxLayout(loginFrame.getContentPane(), BoxLayout.Y_AXIS));
+        loginFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        loginFrame.pack();
+        loginFrame.setVisible(true);
+    }
+
     public static void main(String[] args) {
-        createUser();
+        // showCreateUser();
+        showLogin();
     }
 }
