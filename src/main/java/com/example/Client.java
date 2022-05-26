@@ -58,12 +58,17 @@ public class Client {
             public void actionPerformed(ActionEvent e) {
                 String password = String.valueOf(passwordField.getPassword());
                 String repeatPassword = String.valueOf(repeatPasswordField.getPassword());
+                if (usernameTxtField.getText().isEmpty() || password.isEmpty() || repeatPassword.isEmpty()) {
+                    JOptionPane.showMessageDialog(createUserFrame, "Chưa điển đầy đủ các trường thông tin!", "Lỗi",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
                 if (passwordsMatched(password, repeatPassword)) {
                     writeNewUserToFile(usernameTxtField.getText(), password);
-                    JOptionPane.showMessageDialog(createUserFrame, "Success", "Success",
+                    JOptionPane.showMessageDialog(createUserFrame, "Thành công!", "Thành công",
                             JOptionPane.INFORMATION_MESSAGE);
                 } else
-                    JOptionPane.showMessageDialog(createUserFrame, "Passwords did not match!", "Error",
+                    JOptionPane.showMessageDialog(createUserFrame, "2 mật khẩu không trùng khớp!", "Lỗi",
                             JOptionPane.ERROR_MESSAGE);
             }
 
