@@ -12,6 +12,9 @@ import java.util.Scanner;
 
 import javax.swing.*;
 
+import org.apache.commons.codec.cli.Digest;
+import org.apache.commons.codec.digest.DigestUtils;
+
 /**
  * Hello world!
  *
@@ -22,7 +25,7 @@ public class Client {
         try {
             fWriter = new FileWriter("users.dat", true);
             fWriter.write(username + "\n");
-            fWriter.write(password + "\n");
+            fWriter.write(DigestUtils.sha1Hex(password) + "\n");
             fWriter.close();
         } catch (IOException e) {
             e.printStackTrace();
@@ -122,10 +125,5 @@ public class Client {
 
     public static void main(String[] args) {
         createUser();
-
-        // JFrame mainFrame = new JFrame();
-        // mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        // mainFrame.pack();
-        // mainFrame.setVisible(true);
     }
 }
