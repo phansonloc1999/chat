@@ -1,13 +1,21 @@
 package com.example;
 
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.Scanner;
 
 import javax.swing.*;
@@ -194,8 +202,46 @@ public class Client {
         loginFrame.setVisible(true);
     }
 
-    public static void main(String[] args) {
-        // showCreateUser();
+    public static Socket getClientSocket(int portnum) {
+        try {
+            return new Socket("localhost", portnum);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+            return null;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static void showChat() {
+        final JFrame chatFrame = new JFrame();
+        JTextArea chatlogTxtArea = new JTextArea();
+        // chatlogTxtArea.setEditable(false);
+        chatlogTxtArea.setPreferredSize(new Dimension(400, 100));
+        chatlogTxtArea.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        JScrollPane chatlogScrollPane = new JScrollPane(chatlogTxtArea);
+        chatlogScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+        chatFrame.add(chatlogScrollPane);
+
+        JPanel jPanel = new JPanel();
+        JTextArea inputTxtArea = new JTextArea();
+        jPanel.add(inputTxtArea);
+        JButton sendBtn = new JButton("Gửi");
+        jPanel.add(sendBtn);
+        jPanel.setLayout(new FlowLayout());
+        jPanel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+
+        chatFrame.add(jPanel);
+        chatFrame.setLayout(new BoxLayout(chatFrame.getContentPane(), BoxLayout.Y_AXIS));
+        chatFrame.setTitle("Cửa sổ chat");
+        chatFrame.pack();
+        chatFrame.setVisible(true);
+    }
+
+    public static void main(String[] args) throws IOException {
+        showCreateUser();
         showLogin();
+        showChat();
     }
 }
