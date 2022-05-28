@@ -24,7 +24,7 @@ import org.apache.commons.codec.digest.DigestUtils;
  * Hello world!
  *
  */
-public class Client {
+public class Server {
     public static void writeNewUserToFile(String username, String password) {
         FileWriter fWriter;
         try {
@@ -276,21 +276,22 @@ public class Client {
     }
 
     public static void main(String[] args) {
-        Socket clientSocket = getClientSock("localhost", 1234);
+        ServerSocket listener = getServerSock(1234);
+
+        Socket serverSocket;
         try {
-            if (clientSocket.isConnected()) {
-                System.out.println("Successfully connected!");
+            serverSocket = listener.accept();
 
-                BufferedWriter clientWriter = new BufferedWriter(
-                        new OutputStreamWriter(clientSocket.getOutputStream()));
+            BufferedWriter serverWriter = new BufferedWriter(
+                    new OutputStreamWriter(serverSocket.getOutputStream()));
 
-                BufferedReader clientReader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            BufferedReader serverReader = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()));
 
-                showChat(clientSocket, clientWriter, clientReader, "Client");
-            }
+            showChat(serverSocket, serverWriter, serverReader, "Server");
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
+
     }
 }
