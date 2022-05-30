@@ -13,6 +13,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -27,6 +28,8 @@ import org.apache.commons.codec.digest.DigestUtils;
  *
  */
 public class Client {
+    private static Socket clientSocket = null;
+
     public static void writeNewUserToFile(String username, String password) {
         FileWriter fWriter;
         try {
@@ -172,6 +175,26 @@ public class Client {
                 String username = usernameTxtField.getText(), password = String.valueOf(passwordField.getPassword());
                 if (authenticate(username, password)) {
                     loginFrame.dispose();
+
+                    BufferedWriter clientWriter;
+                    try {
+                        clientWriter = new BufferedWriter(
+                                new OutputStreamWriter(clientSocket.getOutputStream(), "UTF8"));
+
+                        BufferedReader clientReader = new BufferedReader(
+                                new InputStreamReader(clientSocket.getInputStream(), "UTF8"));
+
+                        clientWriter.write(username);
+                        clientWriter.newLine();
+                        clientWriter.flush();
+
+                        showChat(clientSocket, clientWriter, clientReader, "Client");
+                    } catch (UnsupportedEncodingException e1) {
+                        e1.printStackTrace();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
+
                 } else {
                     JOptionPane.showMessageDialog(loginFrame, "Tên tài khoản hoặc mật khẩu không đúng!", "Error",
                             JOptionPane.ERROR_MESSAGE);
@@ -236,20 +259,9 @@ public class Client {
         jPanel.add(sendBtn);
         jPanel.setLayout(new FlowLayout());
         jPanel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
-
         chatFrame.add(jPanel);
-        chatFrame.setLayout(new BoxLayout(chatFrame.getContentPane(), BoxLayout.Y_AXIS));
-        chatFrame.setTitle(title);
-        chatFrame.pack();
-        chatFrame.setVisible(true);
+
         chatFrame.addWindowListener(new WindowListener() {
-
-            @Override
-            public void windowOpened(WindowEvent e) {
-                // TODO Auto-generated method stub
-
-            }
-
             @Override
             public void windowClosing(WindowEvent e) {
                 try {
@@ -295,22 +307,32 @@ public class Client {
                 // TODO Auto-generated method stub
 
             }
-        });
 
-        String responseLine;
-        try {
-            while ((responseLine = reader.readLine()) != null) {
-                if (responseLine.equals("END CHAT SESSION")) {
-                    socket.close();
-                    writer.close();
-                    reader.close();
-                    chatFrame.dispose();
-                }
-                chatlogTxtArea.append("Other: " + responseLine + "\n");
+            @Override
+            public void windowOpened(WindowEvent e) {
+                // TODO Auto-generated method stub
+
             }
-        } catch (IOException e1) {
-            e1.printStackTrace();
-        }
+        });
+        chatFrame.setLayout(new BoxLayout(chatFrame.getContentPane(), BoxLayout.Y_AXIS));
+        chatFrame.setTitle(title);
+        chatFrame.pack();
+        chatFrame.setVisible(true);
+
+        // String responseLine;
+        // try {
+        // while ((responseLine = reader.readLine()) != null) {
+        // if (responseLine.equals("END CHAT SESSION")) {
+        // socket.close();
+        // writer.close();
+        // reader.close();
+        // chatFrame.dispose();
+        // }
+        // chatlogTxtArea.append("Other: " + responseLine + "\n");
+        // }
+        // } catch (IOException e1) {
+        // e1.printStackTrace();
+        // }
     }
 
     public static ServerSocket getServerSock(int portnum) {
@@ -361,23 +383,12 @@ public class Client {
             public void actionPerformed(ActionEvent e) {
                 serverConfJFrame.dispose();
 
-                Socket clientSocket = getClientSock(serverIPTxtField.getText(),
+                clientSocket = getClientSock(serverIPTxtField.getText(),
                         Integer.parseInt(serverPortTxtField.getText()));
-                try {
-                    if (clientSocket.isConnected()) {
-                        System.out.println("Successfully connected!");
 
-                        BufferedWriter clientWriter = new BufferedWriter(
-                                new OutputStreamWriter(clientSocket.getOutputStream(), "UTF8"));
-
-                        BufferedReader clientReader = new BufferedReader(
-                                new InputStreamReader(clientSocket.getInputStream(), "UTF8"));
-
-                        showChat(clientSocket, clientWriter, clientReader, "Client");
-                    }
-                } catch (IOException exception) {
-                    // TODO Auto-generated catch block
-                    exception.printStackTrace();
+                if (clientSocket.isConnected()) {
+                    System.out.println("Successfully connected!");
+                    showLogin();
                 }
             }
 
