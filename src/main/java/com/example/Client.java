@@ -337,23 +337,74 @@ public class Client {
 
     }
 
-    public static void main(String[] args) {
-        Socket clientSocket = getClientSock("localhost", 1234);
-        try {
-            if (clientSocket.isConnected()) {
-                System.out.println("Successfully connected!");
+    public static void showServerConfig() {
+        final JFrame serverConfJFrame = new JFrame();
+        JLabel serverIPLabel = new JLabel("Server IP");
+        serverIPLabel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        serverConfJFrame.add(serverIPLabel);
+        final JTextField serverIPTxtField = new JTextField();
+        serverIPTxtField.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        serverConfJFrame.add(serverIPTxtField);
 
-                BufferedWriter clientWriter = new BufferedWriter(
-                        new OutputStreamWriter(clientSocket.getOutputStream(), "UTF8"));
+        JLabel serverPortLabel = new JLabel("Server Port");
+        serverPortLabel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        serverConfJFrame.add(serverPortLabel);
+        final JTextField serverPortTxtField = new JTextField();
+        serverPortTxtField.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        serverConfJFrame.add(serverPortTxtField);
 
-                BufferedReader clientReader = new BufferedReader(
-                        new InputStreamReader(clientSocket.getInputStream(), "UTF8"));
+        JPanel buttonsPanel = new JPanel();
+        JButton confirmBtn = new JButton("Xác nhận");
+        confirmBtn.addActionListener(new ActionListener() {
 
-                showChat(clientSocket, clientWriter, clientReader, "Client");
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                serverConfJFrame.dispose();
+
+                Socket clientSocket = getClientSock(serverIPTxtField.getText(),
+                        Integer.parseInt(serverPortTxtField.getText()));
+                try {
+                    if (clientSocket.isConnected()) {
+                        System.out.println("Successfully connected!");
+
+                        BufferedWriter clientWriter = new BufferedWriter(
+                                new OutputStreamWriter(clientSocket.getOutputStream(), "UTF8"));
+
+                        BufferedReader clientReader = new BufferedReader(
+                                new InputStreamReader(clientSocket.getInputStream(), "UTF8"));
+
+                        showChat(clientSocket, clientWriter, clientReader, "Client");
+                    }
+                } catch (IOException exception) {
+                    // TODO Auto-generated catch block
+                    exception.printStackTrace();
+                }
             }
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+
+        });
+        buttonsPanel.add(confirmBtn);
+        JButton exitBtn = new JButton("Thoát");
+        exitBtn.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                serverConfJFrame.dispose();
+            }
+
+        });
+        buttonsPanel.add(exitBtn);
+        buttonsPanel.setLayout(new FlowLayout());
+        buttonsPanel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        serverConfJFrame.add(buttonsPanel);
+
+        serverConfJFrame.setLayout(new BoxLayout(serverConfJFrame.getContentPane(), BoxLayout.Y_AXIS));
+        serverConfJFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        serverConfJFrame.setTitle("Cấu hình server");
+        serverConfJFrame.pack();
+        serverConfJFrame.setVisible(true);
+    }
+
+    public static void main(String[] args) {
+        showServerConfig();
     }
 }
