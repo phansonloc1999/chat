@@ -133,24 +133,6 @@ public class Client {
         createUserFrame.setVisible(true);
     }
 
-    public static boolean authenticate(String loginUsername, String loginPassword) {
-        Scanner scanner;
-        try {
-            scanner = new Scanner(new File("users.dat"));
-            while (scanner.hasNextLine()) {
-                String username = scanner.nextLine();
-                if (username.equals(loginUsername)) {
-                    String password = scanner.nextLine();
-                    if (password.equals(DigestUtils.sha1Hex(loginPassword)))
-                        return true;
-                }
-            }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
     public static void showLogin() {
         final JFrame loginFrame = new JFrame();
         JLabel usernameLabel = new JLabel("Username");
@@ -173,31 +155,42 @@ public class Client {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String username = usernameTxtField.getText(), password = String.valueOf(passwordField.getPassword());
-                if (authenticate(username, password)) {
-                    loginFrame.dispose();
 
+                try {
                     BufferedWriter clientWriter;
+                    BufferedReader clientReader;
+                    clientWriter = new BufferedWriter(
+                            new OutputStreamWriter(clientSocket.getOutputStream(), "UTF8"));
+
+                    clientReader = new BufferedReader(
+                            new InputStreamReader(clientSocket.getInputStream(), "UTF8"));
+
+                    clientWriter.write(username);
+                    clientWriter.newLine();
+                    clientWriter.write(password);
+                    clientWriter.newLine();
+                    clientWriter.flush();
+
+                    String authenResult;
                     try {
-                        clientWriter = new BufferedWriter(
-                                new OutputStreamWriter(clientSocket.getOutputStream(), "UTF8"));
-
-                        BufferedReader clientReader = new BufferedReader(
-                                new InputStreamReader(clientSocket.getInputStream(), "UTF8"));
-
-                        clientWriter.write(username);
-                        clientWriter.newLine();
-                        clientWriter.flush();
-
-                        showChat(clientSocket, clientWriter, clientReader, "Client");
-                    } catch (UnsupportedEncodingException e1) {
-                        e1.printStackTrace();
+                        authenResult = clientReader.readLine();
+                        if (authenResult.equals("OK")) {
+                            loginFrame.dispose();
+                            showChat(clientSocket, clientWriter, clientReader, "Client");
+                        } else {
+                            JOptionPane.showMessageDialog(loginFrame, "Tên tài khoản hoặc mật khẩu không đúng!",
+                                    "Error",
+                                    JOptionPane.ERROR_MESSAGE);
+                        }
                     } catch (IOException e1) {
+                        // TODO Auto-generated catch block
                         e1.printStackTrace();
                     }
 
-                } else {
-                    JOptionPane.showMessageDialog(loginFrame, "Tên tài khoản hoặc mật khẩu không đúng!", "Error",
-                            JOptionPane.ERROR_MESSAGE);
+                } catch (UnsupportedEncodingException e1) {
+                    e1.printStackTrace();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
                 }
             }
 

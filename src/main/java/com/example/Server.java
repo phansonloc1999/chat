@@ -1,10 +1,5 @@
 package com.example;
 
-import java.awt.FlowLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -15,11 +10,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Scanner;
-
-import javax.swing.*;
 
 import org.apache.commons.codec.digest.DigestUtils;
 
@@ -72,22 +64,64 @@ public class Server {
         }
     }
 
+    public static boolean authenticate(String loginUsername, String loginPassword) {
+        Scanner scanner;
+        try {
+            scanner = new Scanner(new File("users.dat"));
+            while (scanner.hasNextLine()) {
+                String username = scanner.nextLine();
+                if (username.equals(loginUsername)) {
+                    String password = scanner.nextLine();
+                    if (password.equals(DigestUtils.sha1Hex(loginPassword)))
+                        return true;
+                }
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     public static void main(String[] args) {
         ServerSocket listener = getServerSock(1234);
 
-        Socket serverSocket;
+        Socket socket;
         try {
             while (true) {
-                serverSocket = listener.accept();
+                socket = listener.accept();
 
-                BufferedWriter serverWriter = new BufferedWriter(
-                        new OutputStreamWriter(serverSocket.getOutputStream(), "UTF8"));
+                final BufferedWriter serverWriter = new BufferedWriter(
+                        new OutputStreamWriter(socket.getOutputStream(), "UTF8"));
 
-                BufferedReader serverReader = new BufferedReader(
-                        new InputStreamReader(serverSocket.getInputStream(), "UTF8"));
+                final BufferedReader serverReader = new BufferedReader(
+                        new InputStreamReader(socket.getInputStream(), "UTF8"));
 
-                String username = serverReader.readLine();
-                onlineUsers.add(username);
+                Thread thread = new Thread() {
+                    public void run() {
+                        while (true) {
+                            try {
+                                String username = serverReader.readLine();
+                                String password = serverReader.readLine();
+                                if (usernameExists(username)) {
+                                    if (authenticate(username, password)) {
+                                        onlineUsers.add(username);
+                                        serverWriter.write("OK");
+                                        serverWriter.newLine();
+                                        serverWriter.flush();
+                                        continue;
+                                    }
+                                }
+
+                                serverWriter.write("NOT OK");
+                                serverWriter.newLine();
+                                serverWriter.flush();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                };
+                thread.start();
             }
         } catch (IOException e) {
             // TODO Auto-generated catch block
