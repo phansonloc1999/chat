@@ -3,6 +3,8 @@ package com.example;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -199,7 +201,8 @@ public class Client {
         loginFrame.setVisible(true);
     }
 
-    public static void showChat(Socket socket, final BufferedWriter writer, final BufferedReader reader, String title) {
+    public static void showChat(final Socket socket, final BufferedWriter writer, final BufferedReader reader,
+            String title) {
         final JFrame chatFrame = new JFrame();
         final JTextArea chatlogTxtArea = new JTextArea(30, 30);
         chatlogTxtArea.setEditable(false);
@@ -239,14 +242,73 @@ public class Client {
         chatFrame.setTitle(title);
         chatFrame.pack();
         chatFrame.setVisible(true);
+        chatFrame.addWindowListener(new WindowListener() {
+
+            @Override
+            public void windowOpened(WindowEvent e) {
+                // TODO Auto-generated method stub
+
+            }
+
+            @Override
+            public void windowClosing(WindowEvent e) {
+                try {
+                    writer.write("END CHAT SESSION");
+                    writer.newLine();
+                    writer.flush();
+
+                    socket.close();
+                    writer.close();
+                    reader.close();
+                    chatFrame.dispose();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            }
+
+            @Override
+            public void windowClosed(WindowEvent e) {
+                // TODO Auto-generated method stub
+
+            }
+
+            @Override
+            public void windowIconified(WindowEvent e) {
+                // TODO Auto-generated method stub
+
+            }
+
+            @Override
+            public void windowDeiconified(WindowEvent e) {
+                // TODO Auto-generated method stub
+
+            }
+
+            @Override
+            public void windowActivated(WindowEvent e) {
+                // TODO Auto-generated method stub
+
+            }
+
+            @Override
+            public void windowDeactivated(WindowEvent e) {
+                // TODO Auto-generated method stub
+
+            }
+        });
 
         String responseLine;
         try {
             while ((responseLine = reader.readLine()) != null) {
+                if (responseLine.equals("END CHAT SESSION")) {
+                    socket.close();
+                    writer.close();
+                    reader.close();
+                    chatFrame.dispose();
+                }
                 chatlogTxtArea.append("Other: " + responseLine + "\n");
             }
         } catch (IOException e1) {
-            // TODO Auto-generated catch block
             e1.printStackTrace();
         }
     }
@@ -282,9 +344,10 @@ public class Client {
                 System.out.println("Successfully connected!");
 
                 BufferedWriter clientWriter = new BufferedWriter(
-                        new OutputStreamWriter(clientSocket.getOutputStream()));
+                        new OutputStreamWriter(clientSocket.getOutputStream(), "UTF8"));
 
-                BufferedReader clientReader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                BufferedReader clientReader = new BufferedReader(
+                        new InputStreamReader(clientSocket.getInputStream(), "UTF8"));
 
                 showChat(clientSocket, clientWriter, clientReader, "Client");
             }
