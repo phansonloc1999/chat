@@ -30,6 +30,8 @@ public class Server {
 
     static ArrayList<Socket> clientSockets = new ArrayList<>();
 
+    static ArrayList<Socket> chatRequestSockets = new ArrayList<>();
+
     public static void writeNewUserToFile(String username, String password) {
         FileWriter fWriter;
         try {
@@ -122,17 +124,29 @@ public class Server {
             final BufferedReader serverClient2Reader = new BufferedReader(
                     new InputStreamReader(client2Socket.getInputStream(), "UTF8"));
 
-            serverClient2Writer.write("CHAT REQUEST");
-            serverClient2Writer.newLine();
-            serverClient2Writer.flush();
+            Socket chatRequestSocketClient2 = chatRequestSockets.get(client2Index);
+            BufferedWriter chatRequestClient2Writer = new BufferedWriter(
+                    new OutputStreamWriter(chatRequestSocketClient2.getOutputStream(), "UTF8"));
+            System.out.println("Exchanging ip and port information");
+            chatRequestClient2Writer.write("INCOMING CHAT REQUEST");
+            chatRequestClient2Writer.newLine();
+            chatRequestClient2Writer.flush();
+
+            BufferedReader chatRequestClient2Reader = new BufferedReader(
+                    new InputStreamReader(chatRequestSocketClient2.getInputStream(), "UTF8"));
+            System.out.println("Receiving port of client 2");
+            String client2Port = chatRequestClient2Reader.readLine();
+            System.out.println("Port of client 2 is " + client2Port);
 
             serverClient2Writer.write(onlineUserIPs.get(client1Index));
+            serverClient2Writer.newLine();
+            serverClient2Writer.write(Integer.toString(client1Port));
             serverClient2Writer.newLine();
             serverClient2Writer.flush();
 
             serverClient1Writer.write(onlineUserIPs.get(client2Index));
             serverClient1Writer.newLine();
-            serverClient1Writer.write("1");
+            serverClient1Writer.write(client2Port);
             serverClient1Writer.newLine();
             serverClient1Writer.flush();
 
@@ -148,7 +162,8 @@ public class Server {
         try {
             while (true) {
                 final Socket newClientSocket = listener.accept();
-
+                final Socket chatRequestSocket = listener.accept();
+                chatRequestSockets.add(chatRequestSocket);
                 clientSockets.add(newClientSocket);
 
                 Thread thread = new Thread() {
