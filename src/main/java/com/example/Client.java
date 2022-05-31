@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
@@ -32,7 +33,11 @@ import org.apache.commons.codec.digest.DigestUtils;
  *
  */
 public class Client {
-    private static Socket clientSocket = null;
+    private static Socket clientToServerSocket = null;
+
+    private static Socket incomingChatReqSocket = null;
+
+    private static String clientUsername = null;
 
     private static ArrayList<DatagramSocket> chatSockets = new ArrayList<>();
 
@@ -163,13 +168,13 @@ public class Client {
                 String username = usernameTxtField.getText(), password = String.valueOf(passwordField.getPassword());
 
                 try {
-                    BufferedWriter clientWriter;
-                    BufferedReader clientReader;
+                    final BufferedWriter clientWriter;
+                    final BufferedReader clientReader;
                     clientWriter = new BufferedWriter(
-                            new OutputStreamWriter(clientSocket.getOutputStream(), "UTF8"));
+                            new OutputStreamWriter(clientToServerSocket.getOutputStream(), "UTF8"));
 
                     clientReader = new BufferedReader(
-                            new InputStreamReader(clientSocket.getInputStream(), "UTF8"));
+                            new InputStreamReader(clientToServerSocket.getInputStream(), "UTF8"));
 
                     clientWriter.write(username);
                     clientWriter.newLine();
@@ -181,7 +186,10 @@ public class Client {
                     try {
                         authenResult = clientReader.readLine();
                         if (authenResult.equals("OK")) {
+                            clientUsername = username;
+
                             loginFrame.dispose();
+
                             showInputUsernameToChat();
                         } else {
                             JOptionPane.showMessageDialog(loginFrame, "Tên tài khoản hoặc mật khẩu không đúng!",
@@ -310,16 +318,6 @@ public class Client {
         chatFrame.setTitle(title);
         chatFrame.pack();
         chatFrame.setVisible(true);
-
-        byte[] buf = new byte[1024];
-        DatagramPacket dp = new DatagramPacket(buf, 1024);
-        try {
-            socket.receive(dp);
-            String str = new String(dp.getData(), 0, dp.getLength());
-            System.out.println(str);
-        } catch (IOException e1) {
-            e1.printStackTrace();
-        }
     }
 
     public static Socket getClientSock(String ip, int portnum) {
@@ -361,10 +359,11 @@ public class Client {
             public void actionPerformed(ActionEvent e) {
                 serverConfJFrame.dispose();
 
-                clientSocket = getClientSock(serverIPTxtField.getText(),
-                        Integer.parseInt(serverPortTxtField.getText()));
+                clientToServerSocket = getClientSock(
+                        serverIPTxtField.getText().isEmpty() ? "localhost" : serverIPTxtField.getText(),
+                        serverPortTxtField.getText().isEmpty() ? 1234 : Integer.parseInt(serverPortTxtField.getText()));
 
-                if (clientSocket.isConnected()) {
+                if (clientToServerSocket.isConnected()) {
                     System.out.println("Successfully connected!");
                     showLogin();
                 }
@@ -407,23 +406,29 @@ public class Client {
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                String username = inputUsrnameTxt.getText();
+                String usernameToChat = inputUsrnameTxt.getText();
 
                 try {
                     BufferedWriter clientWriter;
                     BufferedReader clientReader;
                     clientWriter = new BufferedWriter(
-                            new OutputStreamWriter(clientSocket.getOutputStream(), "UTF8"));
+                            new OutputStreamWriter(clientToServerSocket.getOutputStream(), "UTF8"));
 
                     clientReader = new BufferedReader(
-                            new InputStreamReader(clientSocket.getInputStream(), "UTF8"));
+                            new InputStreamReader(clientToServerSocket.getInputStream(), "UTF8"));
 
-                    clientWriter.write(username);
+                    clientWriter.write("CHAT REQUEST");
+                    clientWriter.newLine();
+                    clientWriter.write(usernameToChat);
                     clientWriter.newLine();
                     clientWriter.flush();
 
+                    System.out.println("Sending chat request");
+
                     String result = clientReader.readLine();
                     if (result.equals("OK")) {
+                        System.out.print("OK from server");
+
                         DatagramSocket chatSocket = createChatSocket();
                         clientWriter.write(Integer.toString(chatSocket.getLocalPort()));
                         clientWriter.newLine();
@@ -431,7 +436,9 @@ public class Client {
                         System.out.println("Creating chat session");
 
                         String otherUserIP = clientReader.readLine();
+                        System.out.println("Other IP: " + otherUserIP);
                         int otherUserChatPort = Integer.parseInt(clientReader.readLine());
+                        System.out.println(otherUserChatPort);
                         InetAddress otherUserInetAddress = InetAddress.getByName(otherUserIP);
 
                         showChat(chatSocket, otherUserInetAddress, otherUserChatPort, "Chat");

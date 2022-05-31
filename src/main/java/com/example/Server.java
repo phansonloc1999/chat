@@ -8,9 +8,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
+import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -94,6 +92,7 @@ public class Server {
         while (true) {
             try {
                 client2Username = serverClient1Reader.readLine(); // Get username that client1 wants to chat
+                System.out.println("Username to chat: " + client2Username);
 
                 if (onlineUsers.contains(client2Username)) {
                     System.out.println("Username online, creating chat session");
@@ -123,16 +122,17 @@ public class Server {
             final BufferedReader serverClient2Reader = new BufferedReader(
                     new InputStreamReader(client2Socket.getInputStream(), "UTF8"));
 
-            serverClient2Writer.write(onlineUserIPs.get(client1Index));
-            serverClient2Writer.newLine();
-            serverClient2Writer.write(client1Port);
+            serverClient2Writer.write("CHAT REQUEST");
             serverClient2Writer.newLine();
             serverClient2Writer.flush();
 
-            int client2Port = Integer.parseInt(serverClient2Reader.readLine());
+            serverClient2Writer.write(onlineUserIPs.get(client1Index));
+            serverClient2Writer.newLine();
+            serverClient2Writer.flush();
+
             serverClient1Writer.write(onlineUserIPs.get(client2Index));
             serverClient1Writer.newLine();
-            serverClient1Writer.write(client2Port);
+            serverClient1Writer.write("1");
             serverClient1Writer.newLine();
             serverClient1Writer.flush();
 
@@ -151,14 +151,30 @@ public class Server {
 
                 clientSockets.add(newClientSocket);
 
-                final BufferedWriter serverWriter = new BufferedWriter(
-                        new OutputStreamWriter(newClientSocket.getOutputStream(), "UTF8"));
-
-                final BufferedReader serverReader = new BufferedReader(
-                        new InputStreamReader(newClientSocket.getInputStream(), "UTF8"));
-
                 Thread thread = new Thread() {
                     public void run() {
+
+                        BufferedWriter serverWriter = null;
+                        try {
+                            serverWriter = new BufferedWriter(
+                                    new OutputStreamWriter(newClientSocket.getOutputStream(), "UTF8"));
+                        } catch (UnsupportedEncodingException e1) {
+                            e1.printStackTrace();
+                        } catch (IOException e1) {
+                            e1.printStackTrace();
+                        }
+
+                        BufferedReader serverReader = null;
+                        try {
+                            serverReader = new BufferedReader(
+                                    new InputStreamReader(newClientSocket.getInputStream(), "UTF8"));
+                        } catch (UnsupportedEncodingException e1) {
+                            e1.printStackTrace();
+                        } catch (IOException e1) {
+                            e1.printStackTrace();
+                        }
+
+                        // Authentication
                         String username, password;
                         while (true) {
                             try {
@@ -185,7 +201,18 @@ public class Server {
                             }
                         }
 
-                        createChatSession(newClientSocket, serverWriter, serverReader, username);
+                        // Await chat requests from logged in user
+                        while (true) {
+                            String chatRequest;
+                            try {
+                                chatRequest = serverReader.readLine();
+                                if (chatRequest.equals("CHAT REQUEST")) {
+                                    createChatSession(newClientSocket, serverWriter, serverReader, username);
+                                }
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
                     }
                 };
                 thread.start();
