@@ -14,9 +14,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
-import java.net.ServerSocket;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Scanner;
 
 import javax.swing.*;
@@ -29,6 +33,8 @@ import org.apache.commons.codec.digest.DigestUtils;
  */
 public class Client {
     private static Socket clientSocket = null;
+
+    private static ArrayList<DatagramSocket> chatSockets = new ArrayList<>();
 
     public static void writeNewUserToFile(String username, String password) {
         FileWriter fWriter;
@@ -176,7 +182,7 @@ public class Client {
                         authenResult = clientReader.readLine();
                         if (authenResult.equals("OK")) {
                             loginFrame.dispose();
-                            showChat(clientSocket, clientWriter, clientReader, "Client");
+                            showInputUsernameToChat();
                         } else {
                             JOptionPane.showMessageDialog(loginFrame, "Tên tài khoản hoặc mật khẩu không đúng!",
                                     "Error",
@@ -217,7 +223,8 @@ public class Client {
         loginFrame.setVisible(true);
     }
 
-    public static void showChat(final Socket socket, final BufferedWriter writer, final BufferedReader reader,
+    public static void showChat(final DatagramSocket socket, final InetAddress otherUserInetAddress,
+            final int otherUserPort,
             String title) {
         final JFrame chatFrame = new JFrame();
         final JTextArea chatlogTxtArea = new JTextArea(30, 30);
@@ -237,14 +244,16 @@ public class Client {
 
             @Override
             public void actionPerformed(ActionEvent e) {
+                String text = inputTxtArea.getText() + System.lineSeparator();
+                DatagramPacket dp = new DatagramPacket(text.getBytes(), text.length(),
+                        otherUserInetAddress, otherUserPort);
                 try {
-                    writer.write(inputTxtArea.getText() + "\n");
-                    writer.flush();
-                    chatlogTxtArea.append("You: " + inputTxtArea.getText() + "\n");
-                    inputTxtArea.setText("");
+                    socket.send(dp);
                 } catch (IOException e1) {
                     e1.printStackTrace();
                 }
+                chatlogTxtArea.append("You: " + inputTxtArea.getText() + "\n");
+                inputTxtArea.setText("");
             }
 
         });
@@ -257,18 +266,8 @@ public class Client {
         chatFrame.addWindowListener(new WindowListener() {
             @Override
             public void windowClosing(WindowEvent e) {
-                try {
-                    writer.write("END CHAT SESSION");
-                    writer.newLine();
-                    writer.flush();
-
-                    socket.close();
-                    writer.close();
-                    reader.close();
-                    chatFrame.dispose();
-                } catch (IOException e1) {
-                    e1.printStackTrace();
-                }
+                socket.close();
+                chatFrame.dispose();
             }
 
             @Override
@@ -312,28 +311,14 @@ public class Client {
         chatFrame.pack();
         chatFrame.setVisible(true);
 
-        // String responseLine;
-        // try {
-        // while ((responseLine = reader.readLine()) != null) {
-        // if (responseLine.equals("END CHAT SESSION")) {
-        // socket.close();
-        // writer.close();
-        // reader.close();
-        // chatFrame.dispose();
-        // }
-        // chatlogTxtArea.append("Other: " + responseLine + "\n");
-        // }
-        // } catch (IOException e1) {
-        // e1.printStackTrace();
-        // }
-    }
-
-    public static ServerSocket getServerSock(int portnum) {
+        byte[] buf = new byte[1024];
+        DatagramPacket dp = new DatagramPacket(buf, 1024);
         try {
-            return new ServerSocket(portnum);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
+            socket.receive(dp);
+            String str = new String(dp.getData(), 0, dp.getLength());
+            System.out.println(str);
+        } catch (IOException e1) {
+            e1.printStackTrace();
         }
     }
 
@@ -406,6 +391,76 @@ public class Client {
         serverConfJFrame.setTitle("Cấu hình server");
         serverConfJFrame.pack();
         serverConfJFrame.setVisible(true);
+    }
+
+    public static void showInputUsernameToChat() {
+        final JFrame inputUsernameToChatFrame = new JFrame();
+        JLabel inputUsernameLabel = new JLabel("Username");
+        inputUsernameLabel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        inputUsernameToChatFrame.add(inputUsernameLabel);
+        final JTextField inputUsrnameTxt = new JTextField();
+        inputUsrnameTxt.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        inputUsernameToChatFrame.add(inputUsrnameTxt);
+
+        JButton confirmBtn = new JButton("Xác nhận");
+        confirmBtn.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String username = inputUsrnameTxt.getText();
+
+                try {
+                    BufferedWriter clientWriter;
+                    BufferedReader clientReader;
+                    clientWriter = new BufferedWriter(
+                            new OutputStreamWriter(clientSocket.getOutputStream(), "UTF8"));
+
+                    clientReader = new BufferedReader(
+                            new InputStreamReader(clientSocket.getInputStream(), "UTF8"));
+
+                    clientWriter.write(username);
+                    clientWriter.newLine();
+                    clientWriter.flush();
+
+                    String result = clientReader.readLine();
+                    if (result.equals("OK")) {
+                        DatagramSocket chatSocket = createChatSocket();
+                        clientWriter.write(Integer.toString(chatSocket.getLocalPort()));
+                        clientWriter.newLine();
+                        clientWriter.flush();
+                        System.out.println("Creating chat session");
+
+                        String otherUserIP = clientReader.readLine();
+                        int otherUserChatPort = Integer.parseInt(clientReader.readLine());
+                        InetAddress otherUserInetAddress = InetAddress.getByName(otherUserIP);
+
+                        showChat(chatSocket, otherUserInetAddress, otherUserChatPort, "Chat");
+                    } else
+                        JOptionPane.showMessageDialog(inputUsernameToChatFrame,
+                                "Tài khoản không online hoặc không tồn tại", "ERROR", JOptionPane.ERROR_MESSAGE);
+                } catch (UnsupportedEncodingException e1) {
+                    e1.printStackTrace();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            }
+        });
+        inputUsernameToChatFrame.add(confirmBtn);
+        inputUsernameToChatFrame.setLayout(new BoxLayout(inputUsernameToChatFrame.getContentPane(), BoxLayout.Y_AXIS));
+        inputUsernameToChatFrame.setTitle("Nhập tên người dùng muốn chat");
+        inputUsernameToChatFrame.pack();
+        inputUsernameToChatFrame.setVisible(true);
+    }
+
+    protected static DatagramSocket createChatSocket() {
+        try {
+            DatagramSocket chatSocket = new DatagramSocket();
+            chatSockets.add(chatSocket);
+            return chatSocket;
+        } catch (SocketException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public static void main(String[] args) {

@@ -8,6 +8,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -20,7 +24,13 @@ import org.apache.commons.codec.digest.DigestUtils;
  *
  */
 public class Server {
-    static ArrayList<String> onlineUsers = new ArrayList<String>();
+    static ArrayList<String> onlineUsers = new ArrayList<>();
+
+    static ArrayList<String> onlineUserIPs = new ArrayList<>();
+
+    static ArrayList<String> chatPorts = new ArrayList<>();
+
+    static ArrayList<Socket> clientSockets = new ArrayList<>();
 
     public static void writeNewUserToFile(String username, String password) {
         FileWriter fWriter;
@@ -33,10 +43,6 @@ public class Server {
             e.printStackTrace();
         }
 
-    }
-
-    private static boolean passwordsMatched(String password, String repeatPassword) {
-        return password.equals(repeatPassword);
     }
 
     private static boolean usernameExists(String newUsername) {
@@ -82,33 +88,92 @@ public class Server {
         return false;
     }
 
+    private static void createChatSession(Socket clientSocket, BufferedWriter serverClient1Writer,
+            BufferedReader serverClient1Reader, String client1Username) {
+        String client2Username;
+        while (true) {
+            try {
+                client2Username = serverClient1Reader.readLine(); // Get username that client1 wants to chat
+
+                if (onlineUsers.contains(client2Username)) {
+                    System.out.println("Username online, creating chat session");
+
+                    serverClient1Writer.write("OK");
+                    serverClient1Writer.newLine();
+                    serverClient1Writer.flush();
+                    break;
+                } else {
+                    serverClient1Writer.write("NOT OK");
+                    serverClient1Writer.newLine();
+                    serverClient1Writer.flush();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            int client1Port = Integer.parseInt(serverClient1Reader.readLine());
+            int client1Index = onlineUsers.indexOf(client1Username);
+            int client2Index = onlineUsers.indexOf(client2Username);
+            Socket client2Socket = clientSockets.get(client2Index);
+            final BufferedWriter serverClient2Writer = new BufferedWriter(
+                    new OutputStreamWriter(client2Socket.getOutputStream(), "UTF8"));
+
+            final BufferedReader serverClient2Reader = new BufferedReader(
+                    new InputStreamReader(client2Socket.getInputStream(), "UTF8"));
+
+            serverClient2Writer.write(onlineUserIPs.get(client1Index));
+            serverClient2Writer.newLine();
+            serverClient2Writer.write(client1Port);
+            serverClient2Writer.newLine();
+            serverClient2Writer.flush();
+
+            int client2Port = Integer.parseInt(serverClient2Reader.readLine());
+            serverClient1Writer.write(onlineUserIPs.get(client2Index));
+            serverClient1Writer.newLine();
+            serverClient1Writer.write(client2Port);
+            serverClient1Writer.newLine();
+            serverClient1Writer.flush();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
     public static void main(String[] args) {
         ServerSocket listener = getServerSock(1234);
 
-        Socket socket;
         try {
             while (true) {
-                socket = listener.accept();
+                final Socket newClientSocket = listener.accept();
+
+                clientSockets.add(newClientSocket);
 
                 final BufferedWriter serverWriter = new BufferedWriter(
-                        new OutputStreamWriter(socket.getOutputStream(), "UTF8"));
+                        new OutputStreamWriter(newClientSocket.getOutputStream(), "UTF8"));
 
                 final BufferedReader serverReader = new BufferedReader(
-                        new InputStreamReader(socket.getInputStream(), "UTF8"));
+                        new InputStreamReader(newClientSocket.getInputStream(), "UTF8"));
 
                 Thread thread = new Thread() {
                     public void run() {
+                        String username, password;
                         while (true) {
                             try {
-                                String username = serverReader.readLine();
-                                String password = serverReader.readLine();
+                                username = serverReader.readLine();
+                                password = serverReader.readLine();
                                 if (usernameExists(username)) {
                                     if (authenticate(username, password)) {
                                         onlineUsers.add(username);
+                                        InetSocketAddress socketAddress = (InetSocketAddress) newClientSocket
+                                                .getRemoteSocketAddress();
+                                        onlineUserIPs.add(socketAddress.getAddress().getHostAddress());
                                         serverWriter.write("OK");
                                         serverWriter.newLine();
                                         serverWriter.flush();
-                                        continue;
+                                        break;
                                     }
                                 }
 
@@ -119,6 +184,8 @@ public class Server {
                                 e.printStackTrace();
                             }
                         }
+
+                        createChatSession(newClientSocket, serverWriter, serverReader, username);
                     }
                 };
                 thread.start();
