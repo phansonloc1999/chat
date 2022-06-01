@@ -32,6 +32,8 @@ public class Server {
 
     static ArrayList<Socket> chatRequestSockets = new ArrayList<>();
 
+    private static final String CLIENT_LOGGING_OFF = "CLIENT LOGGING OFF";
+
     public static void writeNewUserToFile(String username, String password) {
         FileWriter fWriter;
         try {
@@ -114,20 +116,19 @@ public class Server {
         }
 
         try {
+            System.out.println("Client 1 " + client1Username + " Client 2 " + client2Username);
             int client1Port = Integer.parseInt(serverClient1Reader.readLine());
+            System.out.println("Port of client 1: " + client1Port);
             int client1Index = onlineUsers.indexOf(client1Username);
             int client2Index = onlineUsers.indexOf(client2Username);
             Socket client2Socket = clientSockets.get(client2Index);
             final BufferedWriter serverClient2Writer = new BufferedWriter(
                     new OutputStreamWriter(client2Socket.getOutputStream(), "UTF8"));
 
-            final BufferedReader serverClient2Reader = new BufferedReader(
-                    new InputStreamReader(client2Socket.getInputStream(), "UTF8"));
-
             Socket chatRequestSocketClient2 = chatRequestSockets.get(client2Index);
             BufferedWriter chatRequestClient2Writer = new BufferedWriter(
                     new OutputStreamWriter(chatRequestSocketClient2.getOutputStream(), "UTF8"));
-            System.out.println("Exchanging ip and port information");
+            System.out.println("Clients exchange ip and port information");
             chatRequestClient2Writer.write("INCOMING CHAT REQUEST");
             chatRequestClient2Writer.newLine();
             chatRequestClient2Writer.flush();
@@ -151,7 +152,6 @@ public class Server {
             serverClient1Writer.write(client2Port);
             serverClient1Writer.newLine();
             serverClient1Writer.flush();
-
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -192,39 +192,61 @@ public class Server {
                         }
 
                         // Authentication
-                        String username, password;
+                        String option, username, password;
                         while (true) {
                             try {
+                                option = serverReader.readLine();
                                 username = serverReader.readLine();
                                 password = serverReader.readLine();
-                                if (usernameExists(username)) {
-                                    if (authenticate(username, password)) {
-                                        onlineUsers.add(username);
-                                        InetSocketAddress socketAddress = (InetSocketAddress) newClientSocket
-                                                .getRemoteSocketAddress();
-                                        onlineUserIPs.add(socketAddress.getAddress().getHostAddress());
+                                if (option.equals("SIGN IN")) {
+                                    if (usernameExists(username)) {
+                                        if (authenticate(username, password)) {
+                                            System.out.println(username + " logged on");
+
+                                            onlineUsers.add(username);
+                                            InetSocketAddress socketAddress = (InetSocketAddress) newClientSocket
+                                                    .getRemoteSocketAddress();
+                                            onlineUserIPs.add(socketAddress.getAddress().getHostAddress());
+                                            serverWriter.write("OK");
+                                            serverWriter.newLine();
+                                            serverWriter.flush();
+                                            break;
+                                        }
+                                    } else {
+                                        serverWriter.write("NOT OK");
+                                        serverWriter.newLine();
+                                        serverWriter.flush();
+                                    }
+                                } else if (option.equals("REGISTER")) {
+                                    if (!usernameExists(username)) {
+                                        writeNewUserToFile(username, password);
                                         serverWriter.write("OK");
                                         serverWriter.newLine();
                                         serverWriter.flush();
-                                        break;
+                                    } else {
+                                        serverWriter.write("NOT OK");
+                                        serverWriter.newLine();
+                                        serverWriter.flush();
                                     }
                                 }
-
-                                serverWriter.write("NOT OK");
-                                serverWriter.newLine();
-                                serverWriter.flush();
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
                         }
 
-                        // Await chat requests from logged in user
                         while (true) {
-                            String chatRequest;
+                            String fromClient;
                             try {
-                                chatRequest = serverReader.readLine();
-                                if (chatRequest.equals("CHAT REQUEST")) {
+                                fromClient = serverReader.readLine();
+                                if (fromClient.equals("CHAT REQUEST")) {
                                     createChatSession(newClientSocket, serverWriter, serverReader, username);
+                                }
+                                if (fromClient.equals(CLIENT_LOGGING_OFF)) {
+                                    String loggedOffUsername = serverReader.readLine();
+                                    int index = onlineUsers.indexOf(loggedOffUsername);
+                                    clientSockets.remove(index);
+                                    System.out.println(loggedOffUsername + " logged off");
+                                    return;
                                 }
                             } catch (IOException e) {
                                 e.printStackTrace();
@@ -234,7 +256,9 @@ public class Server {
                 };
                 thread.start();
             }
-        } catch (IOException e) {
+        } catch (
+
+        IOException e) {
             e.printStackTrace();
         }
     }
