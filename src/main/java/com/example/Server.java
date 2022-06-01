@@ -142,6 +142,8 @@ public class Server {
             serverClient2Writer.newLine();
             serverClient2Writer.write(Integer.toString(client1Port));
             serverClient2Writer.newLine();
+            serverClient2Writer.write(client1Username);
+            serverClient2Writer.newLine();
             serverClient2Writer.flush();
 
             serverClient1Writer.write(onlineUserIPs.get(client2Index));
@@ -233,7 +235,6 @@ public class Server {
                 thread.start();
             }
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }

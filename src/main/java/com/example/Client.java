@@ -42,6 +42,7 @@ public class Client {
     private static ArrayList<DatagramSocket> chatSockets = new ArrayList<>();
 
     private static final String INCOMING_CHAT_REQUEST = "INCOMING CHAT REQUEST";
+    private static final String ABORT_CHAT_SESSION = "ABORT CHAT SESSION";
 
     public static void writeNewUserToFile(String username, String password) {
         FileWriter fWriter;
@@ -255,9 +256,9 @@ public class Client {
                                     new InputStreamReader(clientToServerSocket.getInputStream(), "UTF8"));
                             String client1IP = reader.readLine();
                             int client1Port = Integer.parseInt(reader.readLine());
+                            String client1Username = reader.readLine();
                             System.out.println("Client 1 IP " + client1IP + " and port " + client1Port);
-
-                            showChat(chatSocket, InetAddress.getByName(client1IP), client1Port, "Client");
+                            showChat(chatSocket, InetAddress.getByName(client1IP), client1Port, client1Username);
                         }
                     }
                 } catch (IOException e) {
@@ -312,8 +313,14 @@ public class Client {
         chatFrame.addWindowListener(new WindowListener() {
             @Override
             public void windowClosing(WindowEvent e) {
+                DatagramPacket dp = new DatagramPacket(ABORT_CHAT_SESSION.getBytes(), ABORT_CHAT_SESSION.length(),
+                        otherUserInetAddress, otherUserPort);
+                try {
+                    socket.send(dp);
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
                 socket.close();
-                chatFrame.dispose();
             }
 
             @Override
@@ -344,6 +351,30 @@ public class Client {
         chatFrame.setTitle(title);
         chatFrame.pack();
         chatFrame.setVisible(true);
+
+        Thread thread = new Thread() {
+            public void run() {
+                while (true) {
+                    byte[] data = new byte[1024];
+                    DatagramPacket dp = new DatagramPacket(data, data.length);
+                    try {
+                        socket.receive(dp);
+                        String str = new String(dp.getData(), 0, dp.getLength());
+                        System.out.println(str);
+
+                        if (str.equals(ABORT_CHAT_SESSION)) {
+                            socket.close();
+                            chatFrame.dispose();
+                        }
+
+                        chatlogTxtArea.append("Other: " + str);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        };
+        thread.start();
     }
 
     public static Socket getClientSock(String ip, int portnum) {
@@ -469,7 +500,7 @@ public class Client {
                             System.out.println("Other chat port: " + otherUserChatPort);
                             InetAddress otherUserInetAddress = InetAddress.getByName(otherUserIP);
 
-                            showChat(chatSocket, otherUserInetAddress, otherUserChatPort, "Chat");
+                            showChat(chatSocket, otherUserInetAddress, otherUserChatPort, usernameToChat);
                         } else
                             JOptionPane.showMessageDialog(inputUsernameToChatFrame,
                                     "Tài khoản không online hoặc không tồn tại", "ERROR", JOptionPane.ERROR_MESSAGE);
